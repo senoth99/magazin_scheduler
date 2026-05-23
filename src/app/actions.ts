@@ -45,7 +45,7 @@ import {
 } from "@/lib/notifyAdmins";
 import { describeShiftBrief } from "@/lib/shiftBrief";
 import { prismaUserListNameSelect, prismaUserShiftBoardSelect } from "@/lib/prismaSafeUserInclude";
-import { isoFromWeekDay } from "@/lib/utils";
+import { isoFromWeekDay, formatReportSalesLines } from "@/lib/utils";
 import { getZoneShiftTimes } from "@/lib/zoneShiftTimes";
 import { generateZoneCheckInToken } from "@/lib/workplaceQr";
 import { REPORT_PHOTO_KINDS, type ReportPhotoKind } from "@/lib/reportPhotoKinds";
@@ -904,14 +904,18 @@ export async function submitShiftReport(input: unknown) {
 
   assertReportPhotosValid(data.shiftId, data);
 
-  const salesAmountCents = Math.round(data.salesAmountRub * 100);
+  const salesAmountCardCents = Math.round(data.salesAmountCardRub * 100);
+  const salesAmountCashCents = Math.round(data.salesAmountCashRub * 100);
+  const salesAmountCents = salesAmountCardCents + salesAmountCashCents;
   const photoPayload = {
     photoInsidePath: getReportPhotoApiPath(data.shiftId, "inside"),
     workplacePhotoPath: getReportPhotoApiPath(data.shiftId, "workplace"),
     photoOutsidePath: getReportPhotoApiPath(data.shiftId, "outside"),
     photoElectricalPanelPath: getReportPhotoApiPath(data.shiftId, "electrical"),
     photoClosingReceiptPath: getReportPhotoApiPath(data.shiftId, "closing_receipt"),
-    salesAmountCents
+    salesAmountCents,
+    salesAmountCardCents,
+    salesAmountCashCents
   };
 
   const { reportIdForPath } = await prisma.$transaction(async (tx) => {
@@ -955,7 +959,7 @@ export async function submitShiftReport(input: unknown) {
   const shiftId = data.shiftId;
   const employeeName = user.name;
   const reportText = data.text.trim();
-  const salesLine = `Продано на: ${data.salesAmountRub.toLocaleString("ru-RU")} ₽`;
+  const salesLine = formatReportSalesLines(data.salesAmountCardRub, data.salesAmountCashRub);
   after(async () => {
     try {
       const row = await prisma.shiftReport.findUnique({

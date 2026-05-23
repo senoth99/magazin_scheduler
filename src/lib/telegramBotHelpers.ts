@@ -26,25 +26,71 @@ export async function telegramSendPhoto(
   photoBytes: Buffer,
   caption?: string
 ): Promise<void> {
+  await telegramSendMediaGroup(chatId, [photoBytes], caption);
+}
+
+/** Альбом до 10 фото; подпись только у первого (≤1024 символа). */
+export async function telegramSendMediaGroup(
+  chatId: number,
+  photos: Buffer[],
+  caption?: string
+): Promise<void> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
-  if (!token) return;
+  if (!token || !photos.length) return;
+
+  if (photos.length === 1) {
+    try {
+      const form = new FormData();
+      form.append("chat_id", String(chatId));
+      form.append(
+        "photo",
+        new Blob([new Uint8Array(photos[0]!)], { type: "image/jpeg" }),
+        "photo.jpg"
+      );
+      if (caption?.trim()) {
+        form.append("caption", caption.trim().slice(0, 1024));
+      }
+      await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+        method: "POST",
+        body: form
+      });
+    } catch {
+      /* ignore */
+    }
+    return;
+  }
+
   try {
     const form = new FormData();
     form.append("chat_id", String(chatId));
-    form.append(
-      "photo",
-      new Blob([new Uint8Array(photoBytes)], { type: "image/jpeg" }),
-      "workplace.jpg"
-    );
-    if (caption?.trim()) {
-      form.append("caption", caption.trim().slice(0, 1024));
-    }
-    await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+    const media = photos.map((_, i) => {
+      const item: { type: "photo"; media: string; caption?: string } = {
+        type: "photo",
+        media: `attach://photo${i}`
+      };
+      if (i === 0 && caption?.trim()) {
+        item.caption = caption.trim().slice(0, 1024);
+      }
+      return item;
+    });
+    form.append("media", JSON.stringify(media));
+    photos.forEach((buf, i) => {
+      form.append(
+        `photo${i}`,
+        new Blob([new Uint8Array(buf)], { type: "image/jpeg" }),
+        `photo${i}.jpg`
+      );
+    });
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendMediaGroup`, {
       method: "POST",
       body: form
     });
-  } catch {
-    /* ignore */
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      console.error("[telegramSendMediaGroup]", res.status, body.slice(0, 200));
+    }
+  } catch (e) {
+    console.error("[telegramSendMediaGroup]", e);
   }
 }
 

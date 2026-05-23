@@ -101,7 +101,29 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ i
             </div>
           ) : null}
 
-          {report.salesAmountCents != null ? (
+          {report.salesAmountCardCents != null || report.salesAmountCashCents != null ? (
+            <div className="rounded-lg border border-border/70 bg-card/40 px-4 py-3">
+              <p className="text-[10px] font-bold uppercase tracking-display text-muted">Продано на</p>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                {report.salesAmountCardCents != null ? (
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">Карта</p>
+                    <p className="mt-0.5 text-xl font-bold tabular-nums">
+                      {formatMoneyRu(report.salesAmountCardCents / 100)}
+                    </p>
+                  </div>
+                ) : null}
+                {report.salesAmountCashCents != null ? (
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">Наличка</p>
+                    <p className="mt-0.5 text-xl font-bold tabular-nums">
+                      {formatMoneyRu(report.salesAmountCashCents / 100)}
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : report.salesAmountCents != null ? (
             <div className="rounded-lg border border-border/70 bg-card/40 px-4 py-3">
               <p className="text-[10px] font-bold uppercase tracking-display text-muted">Продано на</p>
               <p className="mt-1 text-2xl font-bold tabular-nums">{formatMoneyRu(report.salesAmountCents / 100)}</p>

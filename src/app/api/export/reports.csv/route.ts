@@ -17,13 +17,15 @@ export async function GET() {
       console.error("[api/export/reports.csv]", e);
       return NextResponse.json({ error: "database_unavailable" }, { status: 503 });
     }
-    const header = "Сотрудник,Зона,Смена,Статус,Продано на (руб),Отчет,Создано";
+    const header = "Сотрудник,Зона,Смена,Статус,Продано карта (руб),Продано наличка (руб),Продано всего (руб),Отчет,Создано";
     const rows = reports.map((r) =>
       [
         r.user.name,
         r.shift.zone.name,
         `${r.shift.startTime}-${r.shift.endTime}`,
         r.status,
+        r.salesAmountCardCents != null ? (r.salesAmountCardCents / 100).toFixed(2) : "",
+        r.salesAmountCashCents != null ? (r.salesAmountCashCents / 100).toFixed(2) : "",
         r.salesAmountCents != null ? (r.salesAmountCents / 100).toFixed(2) : "",
         `"${r.text.replaceAll("\"", "\"\"")}"`,
         r.createdAt.toISOString()

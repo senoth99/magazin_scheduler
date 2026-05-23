@@ -54,7 +54,8 @@ export const updateShiftSchema = shiftSchema.partial().extend({
 export const reportSchema = z.object({
   shiftId: z.string().cuid(),
   text: z.string().min(5),
-  salesAmountRub: z.coerce.number().finite().min(0, "Укажите сумму продаж (0 или больше)"),
+  salesAmountCardRub: z.coerce.number().finite().min(0, "Укажите сумму по карте (0 или больше)"),
+  salesAmountCashRub: z.coerce.number().finite().min(0, "Укажите сумму наличными (0 или больше)"),
   photoInsidePath: z.string().min(1),
   workplacePhotoPath: z.string().min(1),
   photoOutsidePath: z.string().min(1),

@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync } from "fs";
 import path from "path";
 import type { ReportPhotoKind } from "@/lib/reportPhotoKinds";
-import { isReportPhotoKind } from "@/lib/reportPhotoKinds";
+import { isReportPhotoKind, REPORT_PHOTO_KINDS } from "@/lib/reportPhotoKinds";
 
 /** Папка вне git и пересборки Next — на VPS обычно рядом с SQLite (`/data/app/uploads`). */
 export function getUploadsRoot(): string {
@@ -47,6 +47,15 @@ export function resolveReportPhotoDiskPath(shiftId: string, kind: ReportPhotoKin
     if (existsSync(legacy)) return legacy;
   }
   return null;
+}
+
+export function resolveAllReportPhotoDiskPaths(shiftId: string): string[] {
+  const paths: string[] = [];
+  for (const kind of REPORT_PHOTO_KINDS) {
+    const diskPath = resolveReportPhotoDiskPath(shiftId, kind.id);
+    if (diskPath) paths.push(diskPath);
+  }
+  return paths;
 }
 
 export function normalizeReportPhotoPath(

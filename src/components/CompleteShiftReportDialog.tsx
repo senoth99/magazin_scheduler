@@ -54,7 +54,8 @@ export function CompleteShiftReportDialog({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
-  const [salesAmount, setSalesAmount] = useState("");
+  const [salesCard, setSalesCard] = useState("");
+  const [salesCash, setSalesCash] = useState("");
   const [photoPaths, setPhotoPaths] = useState(emptyPhotoPaths);
   const [photoPreviews, setPhotoPreviews] = useState(emptyPhotoPreviews);
   const [photoUploading, setPhotoUploading] = useState(emptyUploading);
@@ -92,7 +93,8 @@ export function CompleteShiftReportDialog({
     setOpen(false);
     setError("");
     setText("");
-    setSalesAmount("");
+    setSalesCard("");
+    setSalesCash("");
     resetPhotos();
   };
 
@@ -175,9 +177,17 @@ export function CompleteShiftReportDialog({
                     setError("Напишите чуть подробнее — минимум 5 символов.");
                     return;
                   }
-                  const salesParsed = Number(salesAmount.replace(",", "."));
-                  if (salesAmount.trim() === "" || !Number.isFinite(salesParsed) || salesParsed < 0) {
-                    setError("Укажите сумму в поле «Продано на».");
+                  const cardParsed = Number(salesCard.replace(",", "."));
+                  const cashParsed = Number(salesCash.replace(",", "."));
+                  if (
+                    salesCard.trim() === "" ||
+                    salesCash.trim() === "" ||
+                    !Number.isFinite(cardParsed) ||
+                    !Number.isFinite(cashParsed) ||
+                    cardParsed < 0 ||
+                    cashParsed < 0
+                  ) {
+                    setError("Укажите суммы по карте и наличными.");
                     return;
                   }
                   if (!allPhotosUploaded) {
@@ -189,7 +199,8 @@ export function CompleteShiftReportDialog({
                       await submitShiftReport({
                         shiftId,
                         text,
-                        salesAmountRub: salesParsed,
+                        salesAmountCardRub: cardParsed,
+                        salesAmountCashRub: cashParsed,
                         photoInsidePath: photoPaths.inside,
                         workplacePhotoPath: photoPaths.workplace,
                         photoOutsidePath: photoPaths.outside,
@@ -223,30 +234,58 @@ export function CompleteShiftReportDialog({
                   />
                 </div>
 
-                <div>
-                  <label
-                    className="mb-2 block text-sm font-medium text-foreground"
-                    htmlFor={`shift-report-sales-${shiftId}`}
-                  >
-                    Продано на (сумма)
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      id={`shift-report-sales-${shiftId}`}
-                      type="number"
-                      inputMode="decimal"
-                      min={0}
-                      step="0.01"
-                      className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-sm font-semibold tabular-nums outline-none focus-visible:ring-1 focus-visible:ring-foreground/35"
-                      value={salesAmount}
-                      onChange={(e) => {
-                        setSalesAmount(e.target.value);
-                        setError("");
-                      }}
-                      placeholder="0"
-                      disabled={pending}
-                    />
-                    <span className="shrink-0 text-sm font-medium text-muted">₽</span>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label
+                      className="mb-2 block text-sm font-medium text-foreground"
+                      htmlFor={`shift-report-sales-card-${shiftId}`}
+                    >
+                      Продано на (карта)
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        id={`shift-report-sales-card-${shiftId}`}
+                        type="number"
+                        inputMode="decimal"
+                        min={0}
+                        step="0.01"
+                        className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-sm font-semibold tabular-nums outline-none focus-visible:ring-1 focus-visible:ring-foreground/35"
+                        value={salesCard}
+                        onChange={(e) => {
+                          setSalesCard(e.target.value);
+                          setError("");
+                        }}
+                        placeholder="0"
+                        disabled={pending}
+                      />
+                      <span className="shrink-0 text-sm font-medium text-muted">₽</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label
+                      className="mb-2 block text-sm font-medium text-foreground"
+                      htmlFor={`shift-report-sales-cash-${shiftId}`}
+                    >
+                      Продано на (наличка)
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        id={`shift-report-sales-cash-${shiftId}`}
+                        type="number"
+                        inputMode="decimal"
+                        min={0}
+                        step="0.01"
+                        className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-sm font-semibold tabular-nums outline-none focus-visible:ring-1 focus-visible:ring-foreground/35"
+                        value={salesCash}
+                        onChange={(e) => {
+                          setSalesCash(e.target.value);
+                          setError("");
+                        }}
+                        placeholder="0"
+                        disabled={pending}
+                      />
+                      <span className="shrink-0 text-sm font-medium text-muted">₽</span>
+                    </div>
                   </div>
                 </div>
 

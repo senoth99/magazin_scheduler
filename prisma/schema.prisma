@@ -206,8 +206,10 @@ model ShiftReport {
   shiftId            String    @unique
   userId             String
   text               String
-  /// Выручка за смену (копейки)
+  /// Выручка за смену (копейки), сумма карта + наличка
   salesAmountCents   Int?
+  salesAmountCardCents Int?
+  salesAmountCashCents Int?
   /// Пути к фото через API `/api/reports/workplace-photo?shiftId=…&kind=…`
   photoInsidePath          String?
   workplacePhotoPath       String?

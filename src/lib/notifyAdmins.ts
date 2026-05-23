@@ -2,9 +2,9 @@ import { readFile } from "fs/promises";
 import { AppNotificationType, UserRole } from "@/lib/enums";
 import { notifyUserAppAndTelegram } from "@/lib/notifyDispatch";
 import { prisma } from "@/lib/prisma";
-import { telegramSendMessage, telegramSendPhoto } from "@/lib/telegramBotHelpers";
+import { telegramSendMediaGroup, telegramSendMessage } from "@/lib/telegramBotHelpers";
 import { formatDateRu } from "@/lib/utils";
-import { resolveReportPhotoDiskPath } from "@/lib/workplaceReportPhoto";
+import { resolveAllReportPhotoDiskPaths } from "@/lib/workplaceReportPhoto";
 
 type EmployeeShiftNotifyType =
   | typeof AppNotificationType.SHIFT_ADDED_BY_EMPLOYEE
@@ -167,14 +167,14 @@ function buildShiftReportTelegramParts(header: string, reportText: string): {
 
 async function sendShiftReportTelegram(
   chatId: number,
-  photoBytes: Buffer | null,
+  photos: Buffer[],
   header: string,
   reportText: string
 ) {
   const { caption, followUpMessages } = buildShiftReportTelegramParts(header, reportText);
 
-  if (photoBytes?.length) {
-    await telegramSendPhoto(chatId, photoBytes, caption);
+  if (photos.length) {
+    await telegramSendMediaGroup(chatId, photos, caption);
   } else {
     const chunks = chunkTelegramText(`${header}\n\n${reportText}`, TELEGRAM_MESSAGE_MAX);
     await telegramSendMessage(chatId, chunks[0] ?? header);
@@ -205,13 +205,13 @@ export async function notifyAdminsShiftReportSubmitted(input: {
   const userIds = await getAdminRoleUserIds();
   if (!userIds.length) return;
 
-  const photoPath = resolveReportPhotoDiskPath(input.shiftId);
-  let photoBytes: Buffer | null = null;
-  if (photoPath) {
+  const photoPaths = resolveAllReportPhotoDiskPaths(input.shiftId);
+  const photos: Buffer[] = [];
+  for (const photoPath of photoPaths) {
     try {
-      photoBytes = await readFile(photoPath);
+      photos.push(await readFile(photoPath));
     } catch {
-      photoBytes = null;
+      /* skip missing file */
     }
   }
 
@@ -233,7 +233,7 @@ export async function notifyAdminsShiftReportSubmitted(input: {
       const chatId = row?.telegramId != null && row.telegramId !== "" ? Number(row.telegramId) : NaN;
       if (!Number.isFinite(chatId)) return;
 
-      await sendShiftReportTelegram(chatId, photoBytes, telegramHeader, reportText);
+      await sendShiftReportTelegram(chatId, photos, telegramHeader, reportText);
     })
   );
 }

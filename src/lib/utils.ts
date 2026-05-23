@@ -60,3 +60,10 @@ export const isoFromWeekDay = (weekStart: Date, dayOfWeek: number) => {
 
 export const formatMoneyRu = (amountRub: number) =>
   `${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(Math.max(0, Math.round(amountRub)))} ₽`;
+
+export function formatReportSalesLines(cardRub: number, cashRub: number): string {
+  return [
+    `Продано на (карта): ${formatMoneyRu(cardRub)}`,
+    `Продано на (наличка): ${formatMoneyRu(cashRub)}`
+  ].join("\n");
+}
