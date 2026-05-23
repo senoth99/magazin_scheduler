@@ -18,7 +18,7 @@ export type TgMiniAppUser = {
 
 export async function getTelegramAllowanceRole(tgUser: TgMiniAppUser): Promise<UserRoleValue | null> {
   const rawAdminUser = process.env.TELEGRAM_ADMIN_USERNAME?.trim();
-  const adminUsername = (rawAdminUser && rawAdminUser.length > 0 ? rawAdminUser : "contact_voropaev")
+  const adminUsername = (rawAdminUser && rawAdminUser.length > 0 ? rawAdminUser : "solo9905")
     .replace(/^@+/, "")
     .toLowerCase();
   const adminTgId = process.env.TELEGRAM_ADMIN_TELEGRAM_ID?.trim();
