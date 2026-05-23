@@ -7,11 +7,13 @@ import { updateMyShiftReport } from "@/app/actions";
 export function ReportTextEditor({
   reportId,
   initialText,
-  canEdit
+  canEdit,
+  label = "Текст отчёта"
 }: {
   reportId: string;
   initialText: string;
   canEdit: boolean;
+  label?: string;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -21,18 +23,22 @@ export function ReportTextEditor({
 
   if (!canEdit) {
     return (
-      <div className="rounded-lg border-b border-border bg-transparent pb-3 pt-1">
-        <p className="whitespace-pre-wrap text-sm leading-relaxed">{initialText}</p>
+      <div className="rounded-lg border border-border/70 bg-card/40 px-4 py-3">
+        <p className="text-[10px] font-bold uppercase tracking-display text-muted">{label}</p>
+        <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+          {initialText.trim() ? initialText : "—"}
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-3 rounded-lg border-b border-border bg-transparent pb-3 pt-1">
+    <div className="space-y-3 rounded-lg border border-border/70 bg-card/40 px-4 py-3">
+      <p className="text-[10px] font-bold uppercase tracking-display text-muted">{label}</p>
       {editing ? (
         <>
           <textarea
-            className="min-h-32 w-full resize-y rounded-lg border border-border bg-transparent px-3 py-2.5 text-sm leading-relaxed outline-none focus-visible:outline-none"
+            className="min-h-32 w-full resize-y rounded-lg border border-border bg-surface px-3 py-2.5 text-sm leading-relaxed text-foreground outline-none focus-visible:ring-1 focus-visible:ring-foreground/35"
             value={text}
             onChange={(e) => {
               setText(e.target.value);
@@ -80,7 +86,7 @@ export function ReportTextEditor({
         </>
       ) : (
         <>
-          <p className="whitespace-pre-wrap text-sm leading-relaxed">{initialText}</p>
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">{initialText}</p>
           <button
             type="button"
             className="btn-secondary"

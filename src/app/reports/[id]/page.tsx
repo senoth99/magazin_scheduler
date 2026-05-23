@@ -130,6 +130,13 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ i
             </div>
           ) : null}
 
+          <ReportTextEditor
+            reportId={report.id}
+            initialText={report.text}
+            canEdit={!isAdmin && report.status === ShiftReportStatus.PENDING_REVIEW}
+            label="Что сделано за смену"
+          />
+
           {reportPhotos.length > 0 ? (
             <div className="space-y-4">
               {reportPhotos.map((photo) => (
@@ -144,12 +151,6 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ i
               ))}
             </div>
           ) : null}
-
-          <ReportTextEditor
-            reportId={report.id}
-            initialText={report.text}
-            canEdit={!isAdmin && report.status === ShiftReportStatus.PENDING_REVIEW}
-          />
 
           <ReportReviewActions
             reportId={report.id}
