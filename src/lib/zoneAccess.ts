@@ -1,13 +1,12 @@
 import type { Zone } from "@prisma/client";
 import { getActiveZoneId } from "./activeZone";
 import { UserRole } from "./enums";
-import { MULTI_ZONE_ENABLED, getPrimaryShopZone } from "./multiZone";
+import { MULTI_ZONE_ENABLED, ensurePrimaryShopZone } from "./multiZone";
 import { prisma } from "./prisma";
 
 export async function getAccessibleZonesForUser(user: { id: string; role: string }): Promise<Zone[]> {
   if (!MULTI_ZONE_ENABLED) {
-    const primary = await getPrimaryShopZone();
-    return primary ? [primary] : [];
+    return [await ensurePrimaryShopZone()];
   }
 
   if (user.role === UserRole.SUPER_ADMIN || user.role === UserRole.ADMIN) {
@@ -25,9 +24,7 @@ export async function getAccessibleZonesForUser(user: { id: string; role: string
   return rows.map((r) => r.zone);
 }
 
-export type ResolveActiveZoneResult =
-  | { needsSelection: false; zone: Zone }
-  | { needsSelection: true };
+export type ResolveActiveZoneResult = { zone: Zone };
 
 /** Без записи cookie — только для RSC / server actions чтения. */
 export async function resolveActiveZoneForUser(user: {
@@ -35,23 +32,17 @@ export async function resolveActiveZoneForUser(user: {
   role: string;
 }): Promise<ResolveActiveZoneResult | null> {
   if (!MULTI_ZONE_ENABLED) {
-    const zone = await getPrimaryShopZone();
-    if (!zone) return null;
-    return { needsSelection: false, zone };
+    return { zone: await ensurePrimaryShopZone() };
   }
 
   const accessible = await getAccessibleZonesForUser(user);
   if (accessible.length === 0) return null;
 
-  if (accessible.length === 1) {
-    return { needsSelection: false, zone: accessible[0] };
-  }
-
   const cookieId = await getActiveZoneId();
   if (cookieId) {
-    const zone = accessible.find((z) => z.id === cookieId);
-    if (zone) return { needsSelection: false, zone };
+    const fromCookie = accessible.find((z) => z.id === cookieId);
+    if (fromCookie) return { zone: fromCookie };
   }
 
-  return { needsSelection: true };
+  return { zone: accessible[0] };
 }

@@ -49,7 +49,7 @@ export function AppShell({
             <div className="flex flex-col items-end justify-center gap-1">
               <div className="flex flex-wrap items-center justify-end gap-1.5">
                 {authenticated && showZoneSwitcher ? (
-                  <Link href="/select-point" className={headerChipClass}>
+                  <Link href="/select-point" prefetch={false} className={headerChipClass}>
                     Сменить точку
                   </Link>
                 ) : null}

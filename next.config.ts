@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [{ source: "/select-point", destination: "/schedule", permanent: false }];
+  },
   serverExternalPackages: ["@prisma/client"],
   webpack: (config, { dev }) => {
     if (dev) {

@@ -1,6 +1,7 @@
 import { jwtVerify } from "jose";
 import { NextRequest, NextResponse } from "next/server";
 import { resolveAppPublicBaseUrl } from "@/lib/appUrl";
+import { MULTI_ZONE_ENABLED } from "@/lib/multiZoneConfig";
 import { noSessionRedirectPath } from "@/lib/noSessionRedirect";
 import { sessionSecretBytes } from "@/lib/sessionSecret";
 
@@ -58,6 +59,9 @@ async function middlewareInner(req: NextRequest): Promise<NextResponse> {
   if (!cookie) return redirectNoSession(req);
   try {
     await jwtVerify(cookie, sessionSecretBytes());
+    if (!MULTI_ZONE_ENABLED && pathname === "/select-point") {
+      return NextResponse.redirect(new URL("/schedule", req.url));
+    }
     return NextResponse.next({ request: { headers: requestHeaders } });
   } catch {
     return redirectNoSession(req);

@@ -1,7 +1,6 @@
 import type { Zone } from "@prisma/client";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-import { MULTI_ZONE_ENABLED, getPrimaryShopZone } from "@/lib/multiZone";
+import { MULTI_ZONE_ENABLED, ensurePrimaryShopZone } from "@/lib/multiZone";
 import { prisma } from "./prisma";
 import { sessionCookieSecure } from "./sessionCookie";
 
@@ -23,8 +22,7 @@ export async function getActiveZoneId(): Promise<string | null> {
   if (fromCookie) return fromCookie;
 
   if (!MULTI_ZONE_ENABLED) {
-    const primary = await getPrimaryShopZone();
-    return primary?.id ?? null;
+    return (await ensurePrimaryShopZone()).id;
   }
 
   return null;
@@ -50,16 +48,21 @@ export async function clearActiveZoneId() {
 
 export async function requireActiveZone(): Promise<Zone> {
   if (!MULTI_ZONE_ENABLED) {
-    const zone = await getPrimaryShopZone();
-    if (!zone) redirect("/select-point");
-    return zone;
+    return ensurePrimaryShopZone();
   }
 
   const zoneId = await getActiveZoneIdFromCookie();
-  if (!zoneId) redirect("/select-point");
-  const zone = await prisma.zone.findFirst({ where: { id: zoneId, isActive: true } });
-  if (!zone) redirect("/select-point");
-  return zone;
+  if (zoneId) {
+    const zone = await prisma.zone.findFirst({ where: { id: zoneId, isActive: true } });
+    if (zone) return zone;
+  }
+
+  const fallback = await prisma.zone.findFirst({
+    where: { isActive: true },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }]
+  });
+  if (fallback) return fallback;
+  return ensurePrimaryShopZone();
 }
 
 export async function requireActiveZoneId(): Promise<string> {

@@ -8,7 +8,9 @@ import { UserRole, type UserRole as UserRoleValue } from "./enums";
 import { isNextHttpAccessFallbackError, isNextRedirectError } from "./dbBoundary";
 import { sessionSecretBytes } from "./sessionSecret";
 import { sessionCookieSecure } from "./sessionCookie";
+import { MULTI_ZONE_ENABLED } from "./multiZoneConfig";
 import { resolveActiveZoneForUser } from "./zoneAccess";
+import { ensurePrimaryShopZone } from "./multiZone";
 
 const COOKIE_NAME = "ss_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 14;
@@ -251,8 +253,13 @@ export async function requireAuth() {
 
 export async function requireAuthWithZone() {
   const user = await requireAuth();
+  if (!MULTI_ZONE_ENABLED) {
+    return { user, zone: await ensurePrimaryShopZone() };
+  }
   const resolved = await resolveActiveZoneForUser(user);
-  if (!resolved || resolved.needsSelection) redirect("/select-point");
+  if (!resolved) {
+    return { user, zone: await ensurePrimaryShopZone() };
+  }
   return { user, zone: resolved.zone };
 }
 

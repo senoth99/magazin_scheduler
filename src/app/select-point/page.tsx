@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { selectActiveZone } from "@/app/actions";
 import { AuthScreenShell } from "@/components/AuthScreenShell";
 import { requireAuth } from "@/lib/auth";
-import { MULTI_ZONE_ENABLED } from "@/lib/multiZone";
+import { MULTI_ZONE_ENABLED } from "@/lib/multiZoneConfig";
 import { getAccessibleZonesForUser } from "@/lib/zoneAccess";
 import { cn } from "@/lib/utils";
 
@@ -11,10 +11,6 @@ export default async function SelectPointPage() {
 
   const user = await requireAuth();
   const zones = await getAccessibleZonesForUser(user);
-
-  if (zones.length === 1) {
-    redirect("/schedule");
-  }
 
   return (
     <AuthScreenShell
