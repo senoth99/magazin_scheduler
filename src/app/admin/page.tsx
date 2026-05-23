@@ -3,7 +3,7 @@ import { AdminSingleQrDownload } from "@/components/AdminSingleQrDownload";
 import { AdminZoneQrList } from "@/components/AdminZoneQrList";
 import { requireRole } from "@/lib/auth";
 import { UserRole } from "@/lib/enums";
-import { MULTI_ZONE_ENABLED, getPrimaryShopZone } from "@/lib/multiZone";
+import { MULTI_ZONE_ENABLED, ensurePrimaryShopZone } from "@/lib/multiZone";
 import { prisma } from "@/lib/prisma";
 import { ensureAllActiveZonesHaveCheckInTokens, ensureZoneCheckInToken } from "@/lib/workplaceQr";
 
@@ -13,8 +13,7 @@ export default async function AdminPage() {
   if (MULTI_ZONE_ENABLED) {
     await ensureAllActiveZonesHaveCheckInTokens();
   } else {
-    const primary = await getPrimaryShopZone();
-    if (primary) await ensureZoneCheckInToken(primary.id);
+    await ensureZoneCheckInToken((await ensurePrimaryShopZone()).id);
   }
 
   const zones = MULTI_ZONE_ENABLED
@@ -24,7 +23,7 @@ export default async function AdminPage() {
         select: { id: true, name: true }
       })
     : [];
-  const primaryZone = MULTI_ZONE_ENABLED ? null : await getPrimaryShopZone();
+  const primaryZone = MULTI_ZONE_ENABLED ? null : await ensurePrimaryShopZone();
 
   return (
     <div className="space-y-4">

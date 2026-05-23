@@ -1,10 +1,10 @@
-import QRCode from "qrcode";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireRoleApi } from "@/lib/auth";
 import { UserRole } from "@/lib/enums";
 import { prisma } from "@/lib/prisma";
 import { ensureZoneCheckInToken, getZoneCheckInUrl } from "@/lib/workplaceQr";
+import { renderCheckInQrPng, safeQrFileName } from "@/lib/workplaceQrImage";
 
 export async function GET(req: Request) {
   const auth = await requireRoleApi([UserRole.ADMIN, UserRole.SUPER_ADMIN]);
@@ -15,30 +15,47 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "invalid_zone_id" }, { status: 400 });
   }
 
+  let zone: { id: string; name: string; isActive: boolean } | null;
   try {
-    const zone = await prisma.zone.findUnique({
+    zone = await prisma.zone.findUnique({
       where: { id: zoneId.data },
       select: { id: true, name: true, isActive: true }
     });
-    if (!zone?.isActive) {
-      return NextResponse.json({ error: "zone_not_found" }, { status: 404 });
-    }
-
-    const token = await ensureZoneCheckInToken(zone.id);
-    const url = getZoneCheckInUrl(token);
-    const png = await QRCode.toBuffer(url, { type: "png", margin: 2, width: 512 });
-    const safeName = zone.name.replace(/[^\p{L}\p{N}\-_]+/gu, "-").slice(0, 40) || "point";
-
-    return new NextResponse(new Uint8Array(png), {
-      status: 200,
-      headers: {
-        "Content-Type": "image/png",
-        "Content-Disposition": `attachment; filename="qr-${safeName}.png"`,
-        "Cache-Control": "private, no-store"
-      }
-    });
   } catch (e) {
-    console.error("[api/admin/workplace-qr GET]", e);
-    return NextResponse.json({ error: "qr_unavailable" }, { status: 503 });
+    console.error("[api/admin/workplace-qr GET] zone lookup", e);
+    return NextResponse.json({ error: "database_unavailable" }, { status: 503 });
   }
+
+  if (!zone?.isActive) {
+    return NextResponse.json({ error: "zone_not_found" }, { status: 404 });
+  }
+
+  let token: string;
+  try {
+    token = await ensureZoneCheckInToken(zone.id);
+  } catch (e) {
+    console.error("[api/admin/workplace-qr GET] token", e);
+    return NextResponse.json({ error: "token_unavailable" }, { status: 503 });
+  }
+
+  const url = getZoneCheckInUrl(token);
+
+  let png: Buffer;
+  try {
+    png = await renderCheckInQrPng(url);
+  } catch (e) {
+    console.error("[api/admin/workplace-qr GET] render", e);
+    return NextResponse.json({ error: "qr_render_failed" }, { status: 503 });
+  }
+
+  const safeName = safeQrFileName(zone.name);
+
+  return new NextResponse(new Uint8Array(png), {
+    status: 200,
+    headers: {
+      "Content-Type": "image/png",
+      "Content-Disposition": `inline; filename="qr-${safeName}.png"`,
+      "Cache-Control": "private, no-store"
+    }
+  });
 }

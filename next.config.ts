@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [{ source: "/select-point", destination: "/schedule", permanent: false }];
   },
-  serverExternalPackages: ["@prisma/client"],
+  serverExternalPackages: ["@prisma/client", "qrcode"],
   webpack: (config, { dev }) => {
     if (dev) {
       // Файловый pack-cache давал ENOENT; `false` иногда режет связку CSS+HMR — memory стабильнее для стилей.
