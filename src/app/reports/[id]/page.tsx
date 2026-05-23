@@ -80,7 +80,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ i
                       </p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">За работу</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">KPI</p>
                       <p className="mt-0.5 font-semibold tabular-nums">
                         {formatMoneyRu(report.accrualWorkCents / 100)}
                       </p>
@@ -154,6 +154,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ i
           <ReportReviewActions
             reportId={report.id}
             status={report.status}
+            salesAmountCents={report.salesAmountCents}
             accrualAmountCents={report.accrualAmountCents ?? null}
             accrualAppearanceCents={report.accrualAppearanceCents ?? null}
             accrualWorkCents={report.accrualWorkCents ?? null}

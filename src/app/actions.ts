@@ -53,6 +53,7 @@ import {
   getReportPhotoApiPath,
   resolveReportPhotoDiskPath
 } from "@/lib/workplaceReportPhoto";
+import { calculateShiftReportAccrualCents } from "@/lib/shiftReportAccrual";
 
 const REPORT_PHOTO_PATH_KEYS: Record<
   ReportPhotoKind,
@@ -142,16 +143,9 @@ const managerRecordPayoutSchema = z.object({
   amountRub: z.coerce.number().finite().positive("Сумма выплаты должна быть больше нуля")
 });
 
-const acceptShiftReportSchema = z
-  .object({
-    reportId: z.string().cuid(),
-    amountAppearanceRub: z.coerce.number().finite().min(0),
-    amountWorkRub: z.coerce.number().finite().min(0)
-  })
-  .refine((d) => d.amountAppearanceRub + d.amountWorkRub > 0, {
-    message: "Сумма начисления должна быть больше нуля (заполните одну или обе суммы).",
-    path: ["amountAppearanceRub"]
-  });
+const acceptShiftReportSchema = z.object({
+  reportId: z.string().cuid()
+});
 
 function userIsReportAdmin(actor: { role: string; isManager?: boolean | null }) {
   return actor.role === UserRole.ADMIN || actor.role === UserRole.SUPER_ADMIN || Boolean(actor.isManager);
@@ -1017,10 +1011,6 @@ export async function acceptShiftReportWithAccrual(input: unknown) {
   if (!userIsReportAdmin(actor)) throw new Error("Только администратор может принять отчёт.");
 
   const data = acceptShiftReportSchema.parse(input);
-  const appearanceCents = Math.round(data.amountAppearanceRub * 100);
-  const workCents = Math.round(data.amountWorkRub * 100);
-  const amountCents = appearanceCents + workCents;
-  if (amountCents <= 0) throw new Error("Некорректная сумма.");
 
   const ledger = await prisma.$transaction(async (tx) => {
     const report = await tx.shiftReport.findUnique({
@@ -1029,6 +1019,14 @@ export async function acceptShiftReportWithAccrual(input: unknown) {
     });
     if (!report) throw new Error("Отчёт не найден.");
     if (report.status !== ShiftReportStatus.PENDING_REVIEW) throw new Error("Отчёт уже обработан.");
+    if (report.salesAmountCents == null) {
+      throw new Error("В отчёте нет суммы продаж — начисление KPI невозможно.");
+    }
+
+    const { appearanceCents, workCents, totalCents, breakdown } = calculateShiftReportAccrualCents(
+      report.salesAmountCents
+    );
+    if (totalCents <= 0) throw new Error("Некорректная сумма начисления.");
 
     const target = await tx.user.findUnique({
       where: { id: report.userId },
@@ -1038,7 +1036,7 @@ export async function acceptShiftReportWithAccrual(input: unknown) {
       throw new Error("Пользователь не найден или отключён — начисление по отчёту невозможно.");
     }
 
-    const nextDebtCents = target.payoutDebtCents + amountCents;
+    const nextDebtCents = target.payoutDebtCents + totalCents;
 
     await tx.user.update({
       where: { id: report.userId },
@@ -1048,7 +1046,7 @@ export async function acceptShiftReportWithAccrual(input: unknown) {
       where: { id: report.id },
       data: {
         status: ShiftReportStatus.ACCEPTED,
-        accrualAmountCents: amountCents,
+        accrualAmountCents: totalCents,
         accrualAppearanceCents: appearanceCents,
         accrualWorkCents: workCents,
         acceptedAt: new Date(),
@@ -1061,7 +1059,8 @@ export async function acceptShiftReportWithAccrual(input: unknown) {
       reportId: report.id,
       shiftId: report.shift.id,
       prevDebtCents: target.payoutDebtCents,
-      nextDebtCents
+      nextDebtCents,
+      breakdown
     };
   });
 
@@ -1071,9 +1070,11 @@ export async function acceptShiftReportWithAccrual(input: unknown) {
     entityType: "User",
     entityId: ledger.userId,
     payload: {
-      amountRub: amountCents / 100,
-      amountAppearanceRub: data.amountAppearanceRub,
-      amountWorkRub: data.amountWorkRub,
+      amountRub: ledger.breakdown.totalRub,
+      amountAppearanceRub: ledger.breakdown.appearanceRub,
+      amountWorkRub: ledger.breakdown.kpiRub,
+      kpiRatePercent: ledger.breakdown.kpiRatePercent,
+      salesTotalRub: ledger.breakdown.salesTotalRub,
       prevDebtCents: ledger.prevDebtCents,
       nextDebtCents: ledger.nextDebtCents,
       shiftReportId: ledger.reportId,
@@ -1086,9 +1087,10 @@ export async function acceptShiftReportWithAccrual(input: unknown) {
     entityType: "ShiftReport",
     entityId: ledger.reportId,
     payload: {
-      amountRub: amountCents / 100,
-      amountAppearanceRub: data.amountAppearanceRub,
-      amountWorkRub: data.amountWorkRub,
+      amountRub: ledger.breakdown.totalRub,
+      amountAppearanceRub: ledger.breakdown.appearanceRub,
+      amountWorkRub: ledger.breakdown.kpiRub,
+      kpiRatePercent: ledger.breakdown.kpiRatePercent,
       userId: ledger.userId
     }
   });
