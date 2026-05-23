@@ -1,6 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
+
+const ERROR_MESSAGES: Record<string, string> = {
+  invalid_zone_id: "Некорректная точка.",
+  zone_not_found: "Точка не найдена.",
+  token_unavailable: "Не настроена база на сервере. Запустите ./deploy.sh (миграции).",
+  database_unavailable: "База данных недоступна.",
+  Unauthorized: "Нужна авторизация. Перезайдите в приложение.",
+  Forbidden: "Нет прав администратора.",
+  "Profile incomplete": "Завершите профиль в разделе «Кабинет»."
+};
 
 export function AdminQrDownloadButton({
   zoneId,
@@ -15,41 +25,39 @@ export function AdminQrDownloadButton({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const blobUrlRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
-    };
-  }, []);
 
   const loadQr = async () => {
     setLoading(true);
     setError("");
-    if (blobUrlRef.current) {
-      URL.revokeObjectURL(blobUrlRef.current);
-      blobUrlRef.current = null;
-    }
     setImageUrl(null);
 
     try {
       const res = await fetch(`/api/admin/workplace-qr?zoneId=${encodeURIComponent(zoneId)}`, {
         credentials: "include"
       });
-      if (!res.ok) {
-        const data = (await res.json().catch(() => ({}))) as { error?: string };
-        if (data.error === "zone_not_found") throw new Error("Точка не найдена.");
-        if (data.error === "invalid_zone_id") throw new Error("Некорректная точка.");
-        if (data.error === "qr_render_failed") throw new Error("Не удалось нарисовать QR.");
-        throw new Error("Не удалось сгенерировать QR. Обновите страницу или обратитесь к администратору.");
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        url?: string;
+        zoneName?: string;
+        error?: string;
+      };
+
+      if (!res.ok || !data.ok || !data.url) {
+        const key = data.error ?? (res.status === 401 ? "Unauthorized" : res.status === 403 ? "Forbidden" : "");
+        throw new Error(
+          ERROR_MESSAGES[key] ??
+            "Не удалось получить ссылку для QR. Обновите страницу или обратитесь к администратору."
+        );
       }
-      const blob = await res.blob();
-      if (!blob.type.startsWith("image/")) {
-        throw new Error("Сервер вернул не изображение.");
-      }
-      const url = URL.createObjectURL(blob);
-      blobUrlRef.current = url;
-      setImageUrl(url);
+
+      const QRCode = (await import("qrcode")).default;
+      const dataUrl = await QRCode.toDataURL(data.url, {
+        margin: 2,
+        width: 512,
+        errorCorrectionLevel: "M"
+      });
+
+      setImageUrl(dataUrl);
       setOpen(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Ошибка загрузки QR");
@@ -89,7 +97,11 @@ export function AdminQrDownloadButton({
               <p className="text-sm font-semibold">{zoneName}</p>
               <p className="mt-1 text-xs text-muted">QR для отметки прихода на точке</p>
             </div>
-            <img src={imageUrl} alt={`QR ${zoneName}`} className="mx-auto w-full max-w-[280px] rounded-lg border border-border bg-white p-2" />
+            <img
+              src={imageUrl}
+              alt={`QR ${zoneName}`}
+              className="mx-auto w-full max-w-[280px] rounded-lg border border-border bg-white p-2"
+            />
             <p className="text-center text-xs text-muted">
               На телефоне: нажмите и удерживайте изображение → «Сохранить в Фото». На компьютере — кнопка ниже.
             </p>
@@ -97,7 +109,11 @@ export function AdminQrDownloadButton({
               <button type="button" className="btn-secondary w-full" onClick={() => setOpen(false)}>
                 Закрыть
               </button>
-              <a href={imageUrl} download={fileName} className="btn-primary inline-flex w-full items-center justify-center">
+              <a
+                href={imageUrl}
+                download={fileName}
+                className="btn-primary inline-flex w-full items-center justify-center"
+              >
                 Скачать PNG
               </a>
             </div>

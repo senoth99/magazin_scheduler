@@ -4,7 +4,6 @@ import { requireRoleApi } from "@/lib/auth";
 import { UserRole } from "@/lib/enums";
 import { prisma } from "@/lib/prisma";
 import { ensureZoneCheckInToken, getZoneCheckInUrl } from "@/lib/workplaceQr";
-import { renderCheckInQrPng, safeQrFileName } from "@/lib/workplaceQrImage";
 
 export async function GET(req: Request) {
   const auth = await requireRoleApi([UserRole.ADMIN, UserRole.SUPER_ADMIN]);
@@ -40,22 +39,9 @@ export async function GET(req: Request) {
 
   const url = getZoneCheckInUrl(token);
 
-  let png: Buffer;
-  try {
-    png = await renderCheckInQrPng(url);
-  } catch (e) {
-    console.error("[api/admin/workplace-qr GET] render", e);
-    return NextResponse.json({ error: "qr_render_failed" }, { status: 503 });
-  }
-
-  const safeName = safeQrFileName(zone.name);
-
-  return new NextResponse(new Uint8Array(png), {
-    status: 200,
-    headers: {
-      "Content-Type": "image/png",
-      "Content-Disposition": `inline; filename="qr-${safeName}.png"`,
-      "Cache-Control": "private, no-store"
-    }
+  return NextResponse.json({
+    ok: true,
+    url,
+    zoneName: zone.name
   });
 }
